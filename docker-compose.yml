@@ -1,44 +1,59 @@
-services:
+# Defines both our API service and MLflow tracking server
 
-  # ── ETA Predictor API ───────────────────────────────────────────────────────
+version: "3.9"
+
+services:
+  # ── Service 1: Our ETA Prediction API ────────────────────────────
   eta-api:
-    build: .                          # use the Dockerfile in the current directory
+    build:
+      context: . # Build from current directory
+      dockerfile: Dockerfile # Using our Dockerfile
+      target: runtime # Use the 'runtime' stage (not builder)
+    image: eta-predictor:latest
+    container_name: eta-predictor-api
     ports:
-      - "8000:8000"                   # host:container — access API at http://localhost:8000
+      - "8000:8000" # host:container — access at localhost:8000
     volumes:
-      # Mount the local models/ folder into the container read-only.
-      # The API reads the .joblib file from here; the container cannot overwrite it.
+      # Mount the models/ folder — so the container can read model files
+      # ':ro' means read-only — the container cannot write to this folder
       - ./models:/app/models:ro
     environment:
-      - PYTHONUNBUFFERED=1            # print() appears in docker logs immediately
+      - PYTHONUNBUFFERED=1
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s # Give app 20s to start before checking
+    restart: unless-stopped # Restart automatically if it crashes
     depends_on:
-      - mlflow-server                 # wait for MLflow to start before the API starts
-    restart: unless-stopped           # auto-restart on crash but not on manual stop
+      - mlflow-server # Wait for MLflow to start first
+    networks:
+      - sprint-network
 
-  # ── MLflow Tracking Server ──────────────────────────────────────────────────
+  # ── Service 2: MLflow Tracking Server ────────────────────────────
   mlflow-server:
     image: python:3.11-slim
-    # Install mlflow and start the server in one command
-    # --backend-store-uri: where run metadata is stored (SQLite file in the named volume)
-    # --default-artifact-root: where model artifacts (pickles, plots) are stored
-    # --host 0.0.0.0: accept connections from outside the container
+    container_name: mlflow-tracking
     command: >
-      bash -c "pip install mlflow --quiet &&
-               mlflow server
-                 --backend-store-uri sqlite:////mlflow/mlflow.db
-                 --default-artifact-root /mlflow/artifacts
-                 --host 0.0.0.0
-                 --port 5000"
+      bash -c 'pip install mlflow[extras] && mlflow server
+        --host 0.0.0.0
+        --port 5000
+        --backend-store-uri sqlite:////mlflow/mlflow.db
+        --default-artifact-root /mlflow/artifacts'
     ports:
-      - "5000:5000"                   # MLflow UI at http://localhost:5000
+      - "5000:5000"
     volumes:
-      # Named volume — data persists between `docker compose down` and `docker compose up`
-      - mlflow-data:/mlflow
+      - mlflow-data:/mlflow # Persistent storage for MLflow data
+    networks:
+      - sprint-network
     restart: unless-stopped
 
-# ── Named Volumes ───────────────────────────────────────────────────────────
-# Named volumes are managed by Docker and survive container restarts.
-# Unlike bind mounts (./host/path:/container/path), named volumes don't depend on
-# the host directory structure — making them portable across machines.
+# ── Volumes ───────────────────────────────────────────────────────
 volumes:
-  mlflow-data:
+  mlflow-data: # Docker-managed volume for MLflow database + artifacts
+
+# ── Networks ──────────────────────────────────────────────────────
+networks:
+  sprint-network:
+    driver: bridge # Default bridge network — containers can talk to each other
