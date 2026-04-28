@@ -1,31 +1,3 @@
 # Python & ML
 __pycache__/
-*.py[cod]
-.class
-# Virtual environments
-.venv/
-venv/
-ENV/
-.env
-# Data
-data/raw/large/
-data/processed/large/
-*.csv
-*.parquet
-*.pkl
-*.joblib
-# MLflow & artifacts
-mlruns/
-mlflow/
-models/
-# OS
-.DS_Store
-Thumbs.db
-# IDEs
-.vscode/
-.idea/
-*.swp
-*.swo
-# Coverage
-.coverage
-htmlcov/
+.pytest_cache
