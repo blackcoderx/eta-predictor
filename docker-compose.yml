@@ -1,0 +1,44 @@
+services:
+
+  # ── ETA Predictor API ───────────────────────────────────────────────────────
+  eta-api:
+    build: .                          # use the Dockerfile in the current directory
+    ports:
+      - "8000:8000"                   # host:container — access API at http://localhost:8000
+    volumes:
+      # Mount the local models/ folder into the container read-only.
+      # The API reads the .joblib file from here; the container cannot overwrite it.
+      - ./models:/app/models:ro
+    environment:
+      - PYTHONUNBUFFERED=1            # print() appears in docker logs immediately
+    depends_on:
+      - mlflow-server                 # wait for MLflow to start before the API starts
+    restart: unless-stopped           # auto-restart on crash but not on manual stop
+
+  # ── MLflow Tracking Server ──────────────────────────────────────────────────
+  mlflow-server:
+    image: python:3.11-slim
+    # Install mlflow and start the server in one command
+    # --backend-store-uri: where run metadata is stored (SQLite file in the named volume)
+    # --default-artifact-root: where model artifacts (pickles, plots) are stored
+    # --host 0.0.0.0: accept connections from outside the container
+    command: >
+      bash -c "pip install mlflow --quiet &&
+               mlflow server
+                 --backend-store-uri sqlite:////mlflow/mlflow.db
+                 --default-artifact-root /mlflow/artifacts
+                 --host 0.0.0.0
+                 --port 5000"
+    ports:
+      - "5000:5000"                   # MLflow UI at http://localhost:5000
+    volumes:
+      # Named volume — data persists between `docker compose down` and `docker compose up`
+      - mlflow-data:/mlflow
+    restart: unless-stopped
+
+# ── Named Volumes ───────────────────────────────────────────────────────────
+# Named volumes are managed by Docker and survive container restarts.
+# Unlike bind mounts (./host/path:/container/path), named volumes don't depend on
+# the host directory structure — making them portable across machines.
+volumes:
+  mlflow-data:
