@@ -1,48 +1,49 @@
-"""
-Standalone MLflow demo — the "Hello World" of experiment tracking.
-
-Run this once to verify MLflow is working before running the full train.py pipeline.
-It logs a simple sine wave experiment so you can see runs appear in the MLflow UI.
-"""
-
-import math
 import mlflow
 
-# Point at our local MLflow server (started via docker-compose)
-mlflow.set_tracking_uri('http://localhost:5000')
+# Step 1: Tell MLflow where the tracking server is
+mlflow.set_tracking_uri("http://localhost:5000")
 
-# Experiments group related runs — like folders for your ML experiments
-mlflow.set_experiment('hello-mlflow')
+# Step 2: Set (or create) an experiment
+# All runs in this script will go into this experiment
+mlflow.set_experiment("my-first-experiment")
 
-print('Starting first MLflow run...')
+# Step 3: Start a run
+# Everything inside the 'with' block is logged to this single run
+with mlflow.start_run(run_name="learning-mlflow") as run:
+    # Log parameters — settings you chose before training
+    mlflow.log_param("n_estimators", 100)
+    mlflow.log_param("learning_rate", 0.05)
+    mlflow.log_param("model_type", "gradient_boosting")
 
-# mlflow.start_run() creates a new run and returns a context manager
-# Everything logged inside the `with` block belongs to this run
-with mlflow.start_run(run_name='sine-wave-demo'):
+    # You can also log a whole dictionary at once
+    mlflow.log_params({"max_depth": 4, "subsample": 0.8})
 
-    # Log a parameter — any hyperparameter or config value worth tracking
-    amplitude = 1.0
-    frequency = 2.0
-    mlflow.log_param('amplitude', amplitude)
-    mlflow.log_param('frequency', frequency)
+    # Log metrics — results measured after training
+    mlflow.log_metric("train_mae", 22.4)
+    mlflow.log_metric("val_mae", 24.1)
+    mlflow.log_metric("val_r2", 0.89)
 
-    # Log metrics at each step — MLflow records the full history so you can plot them
-    for step in range(20):
-        x = step * 0.1
-        y = amplitude * math.sin(frequency * x)   # simple sine wave
-        mlflow.log_metric('sine_value', y, step=step)
+    # Log a metric at multiple steps (useful for training loss curves)
+    for epoch in range(5):
+        mlflow.log_metric("train_loss", 100 / (epoch + 1), step=epoch)
 
-    # Log an artifact — any file you want to store alongside this run
-    # Here we create a tiny text summary and attach it
-    summary = (
-        f'Sine wave demo\n'
-        f'  amplitude = {amplitude}\n'
-        f'  frequency = {frequency}\n'
-        f'  steps     = 20\n'
+    # Log a file as an artifact
+    # First, create a simple text file
+    with open("notes.txt", "w") as f:
+        f.write("This is my first MLflow run\n")
+        f.write("Model type: Gradient Boosting\n")
+    mlflow.log_artifact("notes.txt")
+
+    # Log tags — free-form labels for filtering
+    mlflow.set_tags(
+        {
+            "dataset": "logistics-ghana-v1",
+            "engineer": "your-name",
+            "status": "experiment",
+        }
     )
-    with open('sine_summary.txt', 'w') as f:
-        f.write(summary)
-    mlflow.log_artifact('sine_summary.txt')  # uploads the file to the run's artifact store
 
-    print('Run complete! Open http://localhost:5000 to see your experiment.')
-    print('Look for experiment "hello-mlflow" → run "sine-wave-demo".')
+    # Print the run ID so we can find it in the UI
+    print(f"Run ID: {run.info.run_id}")
+    print(f"Experiment ID: {run.info.experiment_id}")
+    print(f"View at: http://localhost:5000/#/experiments/{run.info.experiment_id}")

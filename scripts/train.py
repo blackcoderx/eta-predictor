@@ -3,7 +3,6 @@ import warnings
 from pathlib import Path
 
 import joblib
-import matplotlib
 import matplotlib.pyplot as plt
 import mlflow
 import mlflow.sklearn
@@ -56,12 +55,16 @@ def load_and_prepare(csv_path: str):
     rush = list(range(7, 10)) + list(range(17, 20))
     df["is_rush_hour"] = df["hour_of_day"].isin(rush).astype(float)
 
-    # One-hot encode vehicle type
-    df["vehicle_truck"] = (df.get("vehicle_type", "truck") == "truck").astype(float)
-    df["vehicle_van"] = (df.get("vehicle_type", "truck") == "van").astype(float)
-    df["vehicle_motorcycle"] = (df.get("vehicle_type", "truck") == "motorcycle").astype(
-        float
-    )
+    # One-hot encode vehicle type (if column exists in data)
+    if "vehicle_type" in df.columns:
+        df["vehicle_truck"] = (df["vehicle_type"] == "truck").astype(float)
+        df["vehicle_van"] = (df["vehicle_type"] == "van").astype(float)
+        df["vehicle_motorcycle"] = (df["vehicle_type"] == "motorcycle").astype(float)
+    else:
+        # Default: all vehicles are trucks
+        df["vehicle_truck"] = 1.0
+        df["vehicle_van"] = 0.0
+        df["vehicle_motorcycle"] = 0.0
 
     # Ensure all feature columns exist
     for col in FEATURE_COLS:
@@ -239,10 +242,10 @@ def train_and_log(
         print(f"  cv_mae:   {cv_mae:.2f} ± {cv_std:.2f} minutes")
 
         # ── 7. Save plots as MLflow artifacts ──────────────────────
-        Path("/tmp/mlflow_plots").mkdir(exist_ok=True)
+        Path("mlflow_plots").mkdir(parents=True, exist_ok=True)
 
         fi_path = plot_feature_importance(
-            pipeline, FEATURE_COLS, "/tmp/mlflow_plots/feature_importance.png"
+            pipeline, FEATURE_COLS, "mlflow_plots/feature_importance.png"
         )
         if fi_path:
             mlflow.log_artifact(fi_path, "plots")
@@ -250,7 +253,7 @@ def train_and_log(
         avp_path = plot_actual_vs_predicted(
             y_val,
             y_pred,
-            "/tmp/mlflow_plots/actual_vs_predicted.png",
+            "mlflow_plots/actual_vs_predicted.png",
             mae,
         )
         mlflow.log_artifact(avp_path, "plots")
