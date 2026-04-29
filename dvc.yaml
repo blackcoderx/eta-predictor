@@ -27,4 +27,5 @@ stages:
     outs:
       - models/eta_model_latest.joblib
     metrics: # Track these files as metrics
-      - metrics/scores.json: # DVC can compare metrics across versions
+      - metrics/scores.json
+      # DVC can compare metrics across versions
