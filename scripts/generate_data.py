@@ -26,7 +26,7 @@ def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> fl
     return R * 2 * math.asin(math.sqrt(a))
 
 
-def generate_logistics_dataset(n_samples: int = 6000, seed: int = 42) -> pd.DataFrame:
+def generate_logistics_dataset(n_samples: int = 8000, seed: int = 42) -> pd.DataFrame:
     """
     Generate a synthetic logistics ETA dataset for Ghana.
     Coordinates are within the Ghana bounding box.
