@@ -278,7 +278,21 @@ def train_and_log(
             # Log the path as a param so we can find it later
             mlflow.log_param("saved_model_path", model_path)
 
-        print(f"  MLflow UI: http://localhost:5000")
+            # Save metrics to JSON for DVC tracking
+            Path("metrics").mkdir(exist_ok=True)
+            with open("metrics/scores.json", "w") as f:
+                json.dump(
+                    {
+                        "val_mae": metrics["val_mae"],
+                        "val_rmse": metrics["val_rmse"],
+                        "val_r2": metrics["val_r2"],
+                    },
+                    f,
+                    indent=2,
+                )
+            print("  Metrics saved to metrics/scores.json")
+
+        print("MLflow UI: http://localhost:5000")
         return metrics
 
 
